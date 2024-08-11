@@ -17,29 +17,29 @@ import { FileInterceptor } from '@nestjs/platform-express';
 export class ImagesController {
   constructor(private readonly imagesService: ImagesService) {}
 
-  @Post('generate')
+  @Post('txt2shirt/preview')
   async generateImage(@Body('prompt') prompt: string) {
     if (!prompt) {
       throw new HttpException('Prompt is required', HttpStatus.BAD_REQUEST);
     }
 
-    const image = await this.imagesService.generateImage(prompt);
-    return { id: image.id, stampImg: image.stampImg, previewImg: image.previewImg };
+    const image =
+      await this.imagesService.txt2shirt_generatePreviewImage(prompt);
+    return {
+      id: image.id,
+      previewImg: image.previewImg,
+    };
   }
 
-  @Post('sketch')
-  @UseInterceptors(FileInterceptor('sketch'))
-  async generateImageFromSketch(
-    @Body('prompt') prompt: string,
-    @UploadedFile() file: Express.Multer.File,
-  ) {
-    if (!prompt || !file) {
-      throw new HttpException('Prompt and sketch are required', HttpStatus.BAD_REQUEST);
+  @Post('txt2shirt/stamp/:id')
+  async getStampFromPreviewImage(@Param('id') id: string) {
+    if (!id) {
+      throw new HttpException('Image ID is required', HttpStatus.BAD_REQUEST);
     }
 
-    const sketchImg = file.buffer.toString('base64');
-    const image = await this.imagesService.generateImageFromSketch(prompt, sketchImg);
-    return { id: image.id, stampImg: image.stampImg, previewImg: image.previewImg };
+    const image =
+      await this.imagesService.txt2shirt_getStampFromPreviewImage(id);
+    return { stampImg: image.stampImg };
   }
 
   @Post('remove-background')
@@ -55,13 +55,13 @@ export class ImagesController {
   }
 
   @Get()
-  getAllImages() {
-    return this.imagesService.getAllImages();
+  async getAllImages() {
+    return await this.imagesService.getAllImages();
   }
 
   @Get(':id')
-  getImageById(@Param('id') id: string) {
-    const image = this.imagesService.getImageById(id);
+  async getImageById(@Param('id') id: string) {
+    const image = await this.imagesService.getImageById(id);
     if (!image) {
       throw new HttpException('Image not found', HttpStatus.NOT_FOUND);
     }
@@ -69,8 +69,8 @@ export class ImagesController {
   }
 
   @Delete(':id')
-  deleteImageById(@Param('id') id: string) {
-    const deleted = this.imagesService.deleteImageById(id);
+  async deleteImageById(@Param('id') id: string) {
+    const deleted = await this.imagesService.deleteImageById(id);
     if (!deleted) {
       throw new HttpException('Image not found', HttpStatus.NOT_FOUND);
     }
@@ -78,7 +78,7 @@ export class ImagesController {
   }
 
   @Delete()
-  deleteAllImages() {
-    return this.imagesService.deleteAllImages();
+  async deleteAllImages() {
+    return await this.imagesService.deleteAllImages();
   }
 }
