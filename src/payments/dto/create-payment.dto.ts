@@ -1,7 +1,7 @@
 // create-payment.dto.ts
 
 export class CreatePaymentDto {
-  itemType: string;
-  price: number;
+  itemTitle: string;
+  itemPrice: number;
   backUrlSuccess: string;
 }

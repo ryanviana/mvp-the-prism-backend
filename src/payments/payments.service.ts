@@ -21,11 +21,11 @@ export class PaymentsService {
     const body = {
       items: [
         {
-          id: randomId, // Usando o ID aleatório gerado
-          title: createPaymentDto.itemType, // Tipo de item passado no DTO
+          id: randomId,
+          title: createPaymentDto.itemTitle, // Tipo de item passado no DTO
           quantity: 1,
           currency_id: 'BRL',
-          unit_price: createPaymentDto.price, // Preço passado no DTO
+          unit_price: createPaymentDto.itemPrice, // Preço passado no DTO
         },
       ],
       back_urls: {
@@ -33,8 +33,8 @@ export class PaymentsService {
         failure: createPaymentDto.backUrlSuccess, // URL de retorno para falha (você pode personalizar)
         pending: createPaymentDto.backUrlSuccess, // URL de retorno para pendente (você pode personalizar)
       },
-      auto_return: 'approved',
       expires: true,
+      auto_return: 'approved',
       expiration_date_to: new Date(
         new Date().getTime() + 30 * 60000,
       ).toISOString(), // Expiração em 30 minutos
@@ -42,6 +42,7 @@ export class PaymentsService {
 
     try {
       const response = await preference.create({ body });
+      console.log('Payment preference created:', response);
       return response;
     } catch (error) {
       console.error('Error creating payment preference:', error);
