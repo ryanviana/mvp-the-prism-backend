@@ -130,7 +130,6 @@ export class PaymentsService {
     email: string,
   ): Promise<void> {
     const imageId = paymentExternalReference;
-    console.log(`Payment ${paymentExternalReference} was approved!`);
 
     // Fetch the image from the database
     const image = await this.imageModel.findById(imageId);

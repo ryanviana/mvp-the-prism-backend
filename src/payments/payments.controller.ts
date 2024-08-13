@@ -99,7 +99,6 @@ export class PaymentsController {
         imageId,
         createPaymentDto,
       );
-      console.log('Updated image');
       return updatedImage;
     } catch (error) {
       throw new HttpException(
