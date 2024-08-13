@@ -4,6 +4,6 @@ export class CreatePaymentDto {
   itemTitle: string;
   itemPrice: number;
   backUrlSuccess: string;
-  external_reference: string;
+  externalReference: string;
   notificationUrl: string;
 }

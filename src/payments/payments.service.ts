@@ -9,13 +9,20 @@ import { CreatePaymentDto } from './dto/create-payment.dto';
 import { PaymentStatus } from 'src/enums/payment.enum';
 import { Request } from 'express';
 import axios from 'axios';
+import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class PaymentsService {
+  private readonly EMAIL_LOGIN: string;
+  private readonly EMAIL_PASSWORD: string;
+
   constructor(
     private readonly configService: ConfigService,
     @InjectModel(Image.name) private imageModel: Model<ImageDocument>,
-  ) {}
+  ) {
+    this.EMAIL_LOGIN = this.configService.get<string>('EMAIL_LOGIN');
+    this.EMAIL_PASSWORD = this.configService.get<string>('EMAIL_PASSWORD');
+  }
 
   async create(createPaymentDto: CreatePaymentDto) {
     const MERCADO_PAGO_API_KEY = this.configService.get<string>(
@@ -45,7 +52,7 @@ export class PaymentsService {
       expiration_date_to: new Date(
         new Date().getTime() + 30 * 60000,
       ).toISOString(),
-      external_reference: createPaymentDto.external_reference,
+      external_reference: createPaymentDto.externalReference,
       notification_url: createPaymentDto.notificationUrl,
     };
 
@@ -74,7 +81,7 @@ export class PaymentsService {
       {
         paymentId,
         paymentStatus,
-        external_reference: createPaymentDto.external_reference, // Add this line
+        external_reference: createPaymentDto.externalReference, // Add this line
       },
       { new: true },
     );
@@ -114,10 +121,70 @@ export class PaymentsService {
     }
   }
 
-  async handleSuccessfulPayment(paymentId: string): Promise<void> {
-    // Implement your logic for handling successful payments
-    console.log(`Payment ${paymentId} was approved!`);
-    // Update your database, send notifications, etc.
+  async handleSuccessfulPayment(
+    paymentExternalReference: string,
+  ): Promise<void> {
+    // paymentExternalReference is the image id
+    const imageId = paymentExternalReference;
+    console.log(`Payment ${paymentExternalReference} was approved!`);
+
+    // Fetch the image from the database
+    const image = await this.imageModel.findById(imageId);
+    if (!image) {
+      throw new Error(`Image with ID ${imageId} not found`);
+    }
+
+    // Convert the stampImg from base64 to a Buffer
+    const buffer = Buffer.from(image.stampImg, 'base64');
+
+    // Send the PNG image via email using the buffer
+    await this.sendEmailWithAttachment(
+      'ryanvianatv@gmail.com', // Replace with the actual recipient's email address
+      'Your Image is Ready',
+      'Please find your image attached.',
+      buffer,
+      `${imageId}.png`,
+    );
+  }
+
+  async sendEmailWithAttachment(
+    to: string,
+    subject: string,
+    text: string,
+    attachmentBuffer: Buffer,
+    attachmentName: string,
+  ): Promise<void> {
+    // Configure the email transporter
+    console.log('EMAIL_LOGIN', this.EMAIL_LOGIN);
+    console.log('EMAIL_PASSWORD', this.EMAIL_PASSWORD);
+
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false, // use false para STARTTLS; true para SSL na porta 465
+      auth: {
+        user: this.EMAIL_LOGIN,
+        pass: this.EMAIL_PASSWORD,
+      },
+    });
+
+    // Define the email options
+    const mailOptions = {
+      from: this.EMAIL_LOGIN, // Sender address
+      to,
+      subject,
+      text,
+      attachments: [
+        {
+          filename: attachmentName,
+          content: attachmentBuffer,
+        },
+      ],
+    };
+
+    // Send the email
+    await transporter.sendMail(mailOptions);
+    console.log(`Email sent to ${to}`);
   }
 
   verifyWebhookAuthenticity(req: Request): boolean {

@@ -61,7 +61,9 @@ export class PaymentsController {
 
         if (paymentDetails.status === 'approved') {
           // Handle the successful payment
-          await this.paymentsService.handleSuccessfulPayment(paymentId);
+          await this.paymentsService.handleSuccessfulPayment(
+            paymentDetails.external_reference,
+          );
           return res.status(HttpStatus.OK).send('Payment processed');
         } else {
           console.warn('Payment not approved:', paymentDetails.status);
@@ -103,6 +105,21 @@ export class PaymentsController {
     } catch (error) {
       throw new HttpException(
         'Failed to create payment and update image',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Post('send-email/:imageId')
+  async sendEmail(@Param('imageId') imageId: string) {
+    try {
+      await this.paymentsService.handleSuccessfulPayment(imageId);
+      return {
+        message: 'Email sent successfully',
+      };
+    } catch (error) {
+      throw new HttpException(
+        `Failed to send email: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
