@@ -76,27 +76,31 @@ export class PaymentsService {
     const paymentStatus = PaymentStatus.PENDING; // Set initial payment status
 
     // Update the image record with paymentId, paymentStatus, and external_reference
-    const updatedImage = await this.imageModel.findByIdAndUpdate(
+    await this.imageModel.findByIdAndUpdate(
       imageId,
       {
         paymentId,
         paymentStatus,
-        external_reference: createPaymentDto.externalReference, // Add this line
       },
       { new: true },
     );
 
-    return updatedImage;
+    return paymentResponse;
   }
 
-  async updatePaymentStatus(imageId: string, status: PaymentStatus) {
+  async updatePayment(imageId: string, paymentInfo: any) {
     const image = await this.imageModel.findById(imageId);
 
     if (!image) {
       throw new NotFoundException('Image not found');
     }
 
+    const status = paymentInfo.status;
+    const email = paymentInfo.payerEmail;
+
     image.paymentStatus = status;
+    image.paymentEmail = email;
+
     await image.save();
     return image;
   }
@@ -123,8 +127,8 @@ export class PaymentsService {
 
   async handleSuccessfulPayment(
     paymentExternalReference: string,
+    email: string,
   ): Promise<void> {
-    // paymentExternalReference is the image id
     const imageId = paymentExternalReference;
     console.log(`Payment ${paymentExternalReference} was approved!`);
 
@@ -134,16 +138,25 @@ export class PaymentsService {
       throw new Error(`Image with ID ${imageId} not found`);
     }
 
+    const paymentInfo = {
+      status: PaymentStatus.APPROVED,
+      payerEmail: email,
+    };
+
+    this.updatePayment(imageId, paymentInfo);
+
     // Convert the stampImg from base64 to a Buffer
     const buffer = Buffer.from(image.stampImg, 'base64');
 
+    const recipientEmail = email;
+    const username = recipientEmail.split('@')[0];
     // Send the PNG image via email using the buffer
     await this.sendEmailWithAttachment(
-      'ryanvianatv@gmail.com', // Replace with the actual recipient's email address
+      recipientEmail,
       'Your Image is Ready',
       'Please find your image attached.',
       buffer,
-      `${imageId}.png`,
+      `${username}.png`,
     );
   }
 
@@ -155,8 +168,6 @@ export class PaymentsService {
     attachmentName: string,
   ): Promise<void> {
     // Configure the email transporter
-    console.log('EMAIL_LOGIN', this.EMAIL_LOGIN);
-    console.log('EMAIL_PASSWORD', this.EMAIL_PASSWORD);
 
     const transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
@@ -197,10 +208,6 @@ export class PaymentsService {
 
   findOne(id: number) {
     return `This action returns a #${id} payment`;
-  }
-
-  update(id: number, updatePaymentDto: any) {
-    return `This action updates a #${id} payment`;
   }
 
   remove(id: number) {

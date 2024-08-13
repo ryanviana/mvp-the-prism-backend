@@ -68,6 +68,19 @@ export class ImagesController {
     return image;
   }
 
+  @Get(':id/paymentInfo')
+  async getPaymentInfo(@Param('id') id: string) {
+    const image = await this.imagesService.getImageById(id);
+    if (!image) {
+      throw new HttpException('Image not found', HttpStatus.NOT_FOUND);
+    }
+    return {
+      paymentId: image.paymentId,
+      paymentEmail: image.paymentEmail,
+      paymentStatus: image.paymentStatus,
+    };
+  }
+
   @Delete(':id')
   async deleteImageById(@Param('id') id: string) {
     const deleted = await this.imagesService.deleteImageById(id);

@@ -45,8 +45,6 @@ export class PaymentsController {
       return res.status(HttpStatus.FORBIDDEN).send('Invalid signature');
     }
 
-    console.log('Received notification:', JSON.stringify(body, null, 2));
-
     const { topic, resource, action, data } = req.body;
 
     try {
@@ -55,14 +53,14 @@ export class PaymentsController {
         const paymentDetails =
           await this.paymentsService.getPaymentDetails(paymentId);
         console.log(
-          'Payment details:',
+          'NOTIFICATION: Payment details:',
           JSON.stringify(paymentDetails, null, 2),
         );
 
         if (paymentDetails.status === 'approved') {
-          // Handle the successful payment
           await this.paymentsService.handleSuccessfulPayment(
             paymentDetails.external_reference,
+            paymentDetails.payer.email,
           );
           return res.status(HttpStatus.OK).send('Payment processed');
         } else {
@@ -101,25 +99,11 @@ export class PaymentsController {
         imageId,
         createPaymentDto,
       );
+      console.log('Updated image');
       return updatedImage;
     } catch (error) {
       throw new HttpException(
         'Failed to create payment and update image',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  @Post('send-email/:imageId')
-  async sendEmail(@Param('imageId') imageId: string) {
-    try {
-      await this.paymentsService.handleSuccessfulPayment(imageId);
-      return {
-        message: 'Email sent successfully',
-      };
-    } catch (error) {
-      throw new HttpException(
-        `Failed to send email: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -159,7 +143,7 @@ export class PaymentsController {
     }
 
     try {
-      const updatedImage = await this.paymentsService.updatePaymentStatus(
+      const updatedImage = await this.paymentsService.updatePayment(
         imageId,
         status,
       );
