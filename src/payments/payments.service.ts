@@ -47,6 +47,9 @@ export class PaymentsService {
       back_urls: {
         success: createPaymentDto.backUrlSuccess,
       },
+      redirect_urls: {
+        success: createPaymentDto.backUrlSuccess,
+      },
       expires: true,
       auto_return: 'approved',
       expiration_date_to: new Date(
@@ -130,7 +133,7 @@ export class PaymentsService {
     email: string,
   ): Promise<void> {
     const imageId = paymentExternalReference;
-
+    // email = 'ryan.viana@grupoprisma.tech';
     // Fetch the image from the database
     const image = await this.imageModel.findById(imageId);
     if (!image) {
