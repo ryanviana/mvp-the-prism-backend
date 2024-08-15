@@ -76,7 +76,7 @@ export class ImagesController {
     }
     return {
       paymentId: image.paymentId,
-      paymentEmail: image.paymentEmail,
+      paymentEmail: image.payerEmail,
       paymentStatus: image.paymentStatus,
     };
   }

@@ -6,4 +6,5 @@ export class CreatePaymentDto {
   backUrlSuccess: string;
   externalReference: string;
   notificationUrl: string;
+  payerEmail: string;
 }

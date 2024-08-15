@@ -45,6 +45,8 @@ export class PaymentsService {
         },
       ],
       back_urls: {
+        failure: createPaymentDto.backUrlSuccess,
+        pending: createPaymentDto.backUrlSuccess,
         success: createPaymentDto.backUrlSuccess,
       },
       redirect_urls: {
@@ -57,6 +59,9 @@ export class PaymentsService {
       ).toISOString(),
       external_reference: createPaymentDto.externalReference,
       notification_url: createPaymentDto.notificationUrl,
+      payer: {
+        email: createPaymentDto.payerEmail,
+      },
     };
 
     try {
@@ -77,6 +82,7 @@ export class PaymentsService {
 
     const paymentId = paymentResponse.id; // Get the payment ID from MercadoPago response
     const paymentStatus = PaymentStatus.PENDING; // Set initial payment status
+    const payerEmail = createPaymentDto.payerEmail;
 
     // Update the image record with paymentId, paymentStatus, and external_reference
     await this.imageModel.findByIdAndUpdate(
@@ -84,6 +90,7 @@ export class PaymentsService {
       {
         paymentId,
         paymentStatus,
+        payerEmail: payerEmail,
       },
       { new: true },
     );
@@ -99,10 +106,7 @@ export class PaymentsService {
     }
 
     const status = paymentInfo.status;
-    const email = paymentInfo.payerEmail;
-
     image.paymentStatus = status;
-    image.paymentEmail = email;
 
     await image.save();
     return image;
@@ -130,7 +134,6 @@ export class PaymentsService {
 
   async handleSuccessfulPayment(
     paymentExternalReference: string,
-    email: string,
   ): Promise<void> {
     const imageId = paymentExternalReference;
     // email = 'ryan.viana@grupoprisma.tech';
@@ -142,8 +145,9 @@ export class PaymentsService {
 
     const paymentInfo = {
       status: PaymentStatus.APPROVED,
-      payerEmail: email,
     };
+
+    const email = image.payerEmail;
 
     this.updatePayment(imageId, paymentInfo);
 

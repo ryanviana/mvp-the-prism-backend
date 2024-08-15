@@ -18,11 +18,11 @@ export class Image {
   @Prop()
   paymentId?: string; // Field for storing payment ID
 
-  @Prop()
-  paymentEmail?: string;
-
   @Prop({ enum: PaymentStatus, default: PaymentStatus.PENDING })
   paymentStatus?: PaymentStatus; // Field for storing payment status with enum
+
+  @Prop()
+  payerEmail?: string;
 }
 
 export const ImageSchema = SchemaFactory.createForClass(Image);

@@ -49,6 +49,7 @@ export class PaymentsController {
 
     try {
       if (topic === 'payment' && resource) {
+        console.log('NOTIFICATION: Payment received:', JSON.stringify(data));
         const paymentId = resource.split('/').pop();
         const paymentDetails =
           await this.paymentsService.getPaymentDetails(paymentId);
@@ -60,7 +61,6 @@ export class PaymentsController {
         if (paymentDetails.status === 'approved') {
           await this.paymentsService.handleSuccessfulPayment(
             paymentDetails.external_reference,
-            paymentDetails.payer.email,
           );
           return res.status(HttpStatus.OK).send('Payment processed');
         } else {
