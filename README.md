@@ -1,73 +1,143 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="200" alt="Nest Logo" /></a>
-</p>
+# The Prism Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+![NestJS](https://img.shields.io/badge/NestJS-E0234E?logo=nestjs&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-47A248?logo=mongodb&logoColor=white)
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+NestJS backend API for **The Prism**, an AI-powered custom t-shirt design platform. Users describe a design in plain text, the API generates a photorealistic t-shirt preview using Stability AI inpainting, extracts a standalone print-ready stamp, processes payment through MercadoPago, and emails the final design file to the buyer upon confirmation.
 
-## Description
+**Frontend:** [ryanviana/the-prism](https://github.com/ryanviana/the-prism)
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Architecture
 
-## Installation
+The application is organized into two NestJS modules:
 
-```bash
-$ npm install
+- **ImagesModule** -- AI-powered image generation (Stability AI Stable Diffusion inpainting, background removal, image erasing) and full CRUD for image records stored in MongoDB.
+- **PaymentsModule** -- MercadoPago payment preference creation, webhook handling for payment notifications, and automated email delivery of print-ready designs via Gmail SMTP.
+
+```
+src/
+  app.module.ts             # Root module (ConfigModule, MongooseModule)
+  main.ts                   # Bootstrap, CORS config, listens on port 3000
+  enums/
+    payment.enum.ts         # PaymentStatus: PENDING | APPROVED | REJECTED | EXPIRED
+  schemas/
+    image.schema.ts         # Mongoose schema (prompt, previewImg, stampImg, payment fields)
+  images/
+    images.module.ts
+    images.controller.ts    # /images endpoints
+    images.service.ts       # Stability AI integration
+    base-images/            # T-shirt mockup + mask PNGs for inpainting
+    dto/
+  payments/
+    payments.module.ts
+    payments.controller.ts  # /payments endpoints
+    payments.service.ts     # MercadoPago + Nodemailer integration
+    dto/
 ```
 
-## Running the app
+## How It Works
 
-```bash
-# development
-$ npm run start
+1. **Generate preview** -- The user submits a text prompt. The service uses Stability AI's inpainting endpoint to paint the described design onto a t-shirt mockup image using a mask, then stores the result in MongoDB and returns a base64 preview.
+2. **Extract stamp** -- The preview is processed through Stability AI's erase endpoint with an inverted mask to isolate the design area, followed by automatic background removal, producing a standalone print-ready stamp image.
+3. **Create payment** -- A MercadoPago payment preference is created for the design. The image record is updated with payment ID, status, and payer email.
+4. **Webhook confirmation** -- When MercadoPago sends an approved payment notification, the service marks the payment as approved and emails the print-ready stamp PNG to the buyer as an attachment.
 
-# watch mode
-$ npm run start:dev
+## API Endpoints
 
-# production mode
-$ npm run start:prod
+### Images
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/images/txt2shirt/preview` | Generate a t-shirt preview from a text prompt |
+| `POST` | `/images/txt2shirt/stamp/:id` | Extract the standalone stamp design from a preview |
+| `POST` | `/images/remove-background` | Remove the background from an uploaded image (multipart) |
+| `GET` | `/images` | List all images |
+| `GET` | `/images/:id` | Get a single image by ID |
+| `GET` | `/images/:id/paymentInfo` | Get payment info for an image |
+| `DELETE` | `/images/:id` | Delete an image by ID |
+| `DELETE` | `/images` | Delete all images |
+
+### Payments
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/payments/create` | Create a MercadoPago payment preference |
+| `POST` | `/payments/image/:imageId` | Create a payment linked to a specific image |
+| `POST` | `/payments/notification` | MercadoPago webhook for payment notifications |
+| `GET` | `/payments` | List all payments |
+| `GET` | `/payments/:id` | Get a payment by ID |
+| `PATCH` | `/payments/:imageId/status` | Update payment status for an image |
+| `DELETE` | `/payments/:id` | Delete a payment by ID |
+
+## Tech Stack
+
+- **Runtime:** Node.js with TypeScript
+- **Framework:** NestJS 10
+- **Database:** MongoDB via Mongoose 8
+- **AI:** Stability AI API (Stable Diffusion inpainting, erase, background removal)
+- **Payments:** MercadoPago SDK
+- **Email:** Nodemailer with Gmail SMTP
+- **Validation:** class-validator, class-transformer
+- **HTTP Client:** Axios
+- **File Uploads:** Multer
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js (v18+ recommended)
+- npm
+- MongoDB instance
+- [Stability AI API key](https://platform.stability.ai/)
+- [MercadoPago API key](https://www.mercadopago.com.br/developers/)
+- Gmail account with an app password for SMTP
+
+### Environment Variables
+
+Create a `.env` file in the project root:
+
+```env
+MONGO_URI=mongodb://localhost:27017/the-prism
+STABILITY_API_KEY=your_stability_api_key
+
+MERCADOPAGO_API_KEY=your_mercadopago_access_token
+
+MAN_T_SHIRT=src/images/base-images/man-shirt.png
+MAN_T_SHIRT_MASK=src/images/base-images/man-shirt-mask.png
+MAN_T_SHIRT_INVERTED_MASK=src/images/base-images/man-shirt-inverted-mask.png
+
+EMAIL_LOGIN=your_email@gmail.com
+EMAIL_PASSWORD=your_gmail_app_password
 ```
 
-## Test
+### Installation
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm install
 ```
 
-## Support
+### Running
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+```bash
+# Development (watch mode)
+npm run start:dev
 
-## Stay in touch
+# Production build
+npm run build
+npm run start:prod
+```
 
-- Author - [Kamil Myśliwiec](https://kamilmysliwiec.com)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+The server starts on port **3000** by default.
+
+### Testing
+
+```bash
+npm run test          # Unit tests
+npm run test:e2e      # End-to-end tests
+npm run test:cov      # Coverage report
+```
 
 ## License
 
-Nest is [MIT licensed](LICENSE).
+This project is unlicensed (private).
